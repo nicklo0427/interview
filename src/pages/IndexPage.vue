@@ -2,9 +2,32 @@
   <q-page class="row q-pt-xl">
     <div class="full-width q-px-xl">
       <div class="q-mb-xl">
-        <q-input v-model="tempData.name" label="姓名" />
-        <q-input v-model="tempData.age" label="年齡" />
-        <q-btn color="primary" class="q-mt-md">新增</q-btn>
+        <q-form @reset="initData">
+          <q-input
+            ref="nameRef"
+            v-model="tempData.name"
+            label="姓名"
+            lazy-rules
+            :rules="rules.nameRules"
+          />
+          <q-input
+            ref="nameRef"
+            v-model="tempData.age"
+            label="年齡"
+            lazy-rules
+            :rules="rules.ageRules"
+          />
+          <q-btn
+            v-if="!tempData.id"
+            color="primary"
+            class="q-mt-md"
+            @click="addNewData"
+            >新增</q-btn
+          >
+          <q-btn v-else color="secondary" class="q-mt-md" @click="patchData"
+            >保存</q-btn
+          >
+        </q-form>
       </div>
 
       <q-table
@@ -80,12 +103,14 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { QTableProps } from 'quasar';
+import { useQuasar } from 'quasar';
 import { ref } from 'vue';
 interface btnType {
   label: string;
   icon: string;
   status: string;
 }
+const $q = useQuasar();
 const blockData = ref([
   {
     name: 'test',
@@ -118,14 +143,113 @@ const tableButtons = ref([
     status: 'delete',
   },
 ]);
+const api = {
+  GET: {
+    url: 'https://dahua.metcfire.com.tw/api/CRUDTest/a',
+  },
+  POST: {
+    url: 'https://dahua.metcfire.com.tw/api/CRUDTest',
+  },
+  PATCH: {
+    url: 'https://dahua.metcfire.com.tw/api/CRUDTest',
+  },
+  DELETE: {
+    url: 'https://dahua.metcfire.com.tw/api/CRUDTest',
+  },
+};
+
+const nameRef = ref(null);
+const ageRef = ref(null);
 
 const tempData = ref({
   name: '',
   age: '',
 });
+
+const initData = () => {
+  tempData.value = {
+    name: '',
+    age: '',
+  };
+};
+
+const rules = ref({
+  nameRules: [(val) => (val && val.length > 0) || '請輸入姓名'],
+  ageRules: [(val) => /^\d+$/.test(val) || '請輸入正確年齡'],
+});
+
 function handleClickOption(btn, data) {
   // ...
+  btn.status === 'edit' ? editData(data) : confirmDelete(data);
 }
+
+const editData = async (data) => {
+  tempData.value = JSON.parse(JSON.stringify(data));
+};
+
+const confirmDelete = (data) => {
+  $q.dialog({
+    title: '刪除確認',
+    message: '確定要刪除此筆資料嗎？',
+    ok: {
+      label: '確定',
+      color: 'negative',
+    },
+    cancel: {
+      label: '取消',
+      color: 'grey-8',
+    },
+  }).onOk(() => {
+    deleteData(data);
+  });
+};
+
+const deleteData = async (data) => {
+  try {
+    const res = await axios.delete(`${api.DELETE.url}/${data.id}`);
+    if (res) {
+      getTableData();
+      initData();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const patchData = async () => {
+  try {
+    const res = await axios.patch(api.PATCH.url, tempData.value);
+    if (res) {
+      getTableData();
+      initData();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const addNewData = async () => {
+  try {
+    const res = await axios.post(api.POST.url, tempData.value);
+    if (res) {
+      getTableData();
+      initData();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const getTableData = async () => {
+  try {
+    const res = await axios.get(api.GET.url);
+    blockData.value = res.data;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+getTableData();
 </script>
 
 <style lang="scss" scoped>
